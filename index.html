@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мой AI Робот</title>
+    <style>
+        /* Стили (Внешний вид) */
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Тело робота */
+        .robot {
+            width: 150px;
+            height: 150px;
+            background: linear-gradient(145deg, #ffffff, #e6e6e6);
+            border-radius: 40px;
+            box-shadow: 20px 20px 60px #d1d1d1, -20px -20px 60px #ffffff;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        /* Лицо */
+        .face {
+            display: flex;
+            gap: 20px;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .eyes-container {
+            display: flex;
+            gap: 30px;
+        }
+
+        .eye {
+            width: 20px;
+            height: 20px;
+            background-color: #333;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+
+        .mouth {
+            width: 30px;
+            height: 5px;
+            background-color: #333;
+            border-radius: 10px;
+            transition: 0.3s;
+        }
+
+        /* Эмоции (CSS классы) */
+        .robot.happy { background: #d4edda; }
+        .robot.happy .mouth { height: 15px; border-radius: 0 0 15px 15px; }
+        
+        .robot.sad { background: #e2e3e5; }
+        .robot.sad .eye { height: 5px; margin-top: 10px; }
+        .robot.sad .mouth { width: 20px; height: 5px; border-radius: 10px 10px 0 0; }
+
+        .robot.excited { animation: jump 0.5s infinite; background: #fff3cd; }
+        
+        @keyframes jump {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        /* Чат */
+        .chat-container {
+            margin-top: 30px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        #status-text {
+            color: #666;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            min-height: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 20px;
+            box-shadow: inset 5px 5px 10px #e0e0e0, inset -5px -5px 10px #ffffff;
+            outline: none;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 5px 5px 10px #d1d1d1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="robot" id="robot" onclick="petRobot()">
+        <div class="face">
+            <div class="eyes-container">
+                <div class="eye left"></div>
+                <div class="eye right"></div>
+            </div>
+            <div class="mouth"></div>
+        </div>
+    </div>
+
+    <div class="chat-container">
+        <p id="status-text">Я Роби. Поговори со мной или погладь меня!</p>
+        <div class="input-group">
+            <input type="text" id="user-input" placeholder="Напиши что-нибудь..." onkeypress="handleEnter(event)">
+            <button onclick="sendMessage()">→</button>
+        </div>
+    </div>
+
+    <script>
+        // --- ЛОГИКА И ИИ ---
+        
+        let happiness = 50; // 0 - 100
+        const robot = document.getElementById('robot');
+        const statusText = document.getElementById('status-text');
+        const inputField = document.getElementById('user-input');
+
+        // Простая база знаний (ИИ)
+        const responses = {
+            "привет": { text: "Привет! Рад тебя видеть!", mood: "happy" },
+            "как дела": { text: "Мои системы работают нормально. А ты как?", mood: "normal" },
+            "грустно": { text: "Ох... Хочешь я станцую для тебя?", mood: "sad" },
+            "плохо": { text: "Не грусти, всё наладится.", mood: "sad" },
+            "пока": { text: "До встречи! Буду ждать.", mood: "sad" },
+            "ты кто": { text: "Я твой виртуальный друг Роби.", mood: "happy" },
+            "смешно": { text: "Ха-ха! Люблю, когда ты смеешься.", mood: "excited" },
+            "default": { text: "Интересно... Расскажи еще.", mood: "normal" }
+        };
+
+        function updateRobotVisuals() {
+            // Сброс классов
+            robot.className = 'robot';
+            
+            if (happiness > 80) robot.classList.add('excited');
+            else if (happiness > 60) robot.classList.add('happy');
+            else if (happiness < 30) robot.classList.add('sad');
+        }
+
+        function petRobot() {
+            happiness = Math.min(happiness + 10, 100);
+            statusText.innerText = "*Мурлычет* (Счастье: " + happiness + "%)";
+            updateRobotVisuals();
+            
+            // Анимация клика
+            robot.style.transform = "scale(0.95)";
+            setTimeout(() => { robot.style.transform = "scale(1)"; }, 100);
+        }
+
+        function sendMessage() {
+            const text = inputField.value.toLowerCase().trim();
+            if (!text) return;
+
+            inputField.value = '';
+            let response = responses["default"];
+
+            // Поиск ответа (простейший ИИ)
+            for (let key in responses) {
+                if (text.includes(key)) {
+                    response = responses[key];
+                    break;
+                }
+            }
+
+            // Реакция робота
+            statusText.innerText = response.text;
+            
+            // Изменение настроения от слов
+            if (response.mood === "happy") happiness += 10;
+            if (response.mood === "sad") happiness -= 5;
+            if (response.mood === "excited") happiness += 20;
+            
+            // Ограничение значений 0-100
+            happiness = Math.max(0, Math.min(happiness, 100));
+            
+            updateRobotVisuals();
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        // Таймер "Скуки" (робот грустит, если про него забыли)
+        setInterval(() => {
+            happiness -= 1; 
+            if(happiness < 0) happiness = 0;
+            updateRobotVisuals();
+        }, 5000); // Каждые 5 секунд
+
+    </script>
+</body>
+</html>
