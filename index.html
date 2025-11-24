@@ -16,6 +16,9 @@
             height: 100vh;
             margin: 0;
             overflow: hidden;
+            /* Запрещаем выделение текста при тапах */
+            -webkit-user-select: none;
+            user-select: none; 
         }
 
         /* Тело робота */
@@ -31,6 +34,7 @@
             align-items: center;
             transition: all 0.3s ease;
             cursor: pointer;
+            z-index: 10;
         }
 
         /* Лицо */
@@ -62,7 +66,7 @@
             transition: 0.3s;
         }
 
-        /* Эмоции (CSS классы) */
+        /* Эмоции */
         .robot.happy { background: #d4edda; }
         .robot.happy .mouth { height: 15px; border-radius: 0 0 15px 15px; }
         
@@ -72,9 +76,17 @@
 
         .robot.excited { animation: jump 0.5s infinite; background: #fff3cd; }
         
+        .robot.thinking { animation: pulse 1s infinite; }
+
         @keyframes jump {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-20px); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
 
         /* Чат */
@@ -83,6 +95,7 @@
             width: 90%;
             max-width: 400px;
             text-align: center;
+            z-index: 20;
         }
 
         #status-text {
@@ -90,6 +103,7 @@
             margin-bottom: 10px;
             font-size: 0.9rem;
             min-height: 20px;
+            font-weight: 500;
         }
 
         .input-group {
@@ -104,6 +118,7 @@
             border-radius: 20px;
             box-shadow: inset 5px 5px 10px #e0e0e0, inset -5px -5px 10px #ffffff;
             outline: none;
+            font-size: 16px; /* Чтобы iOS не зумил при вводе */
         }
 
         button {
@@ -115,6 +130,16 @@
             font-weight: bold;
             cursor: pointer;
             box-shadow: 5px 5px 10px #d1d1d1;
+            transition: 0.2s;
+        }
+        
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -131,91 +156,143 @@
     </div>
 
     <div class="chat-container">
-        <p id="status-text">Я Роби. Поговори со мной или погладь меня!</p>
+        <p id="status-text">Привет! Я подключен к нейросети.</p>
         <div class="input-group">
-            <input type="text" id="user-input" placeholder="Напиши что-нибудь..." onkeypress="handleEnter(event)">
-            <button onclick="sendMessage()">→</button>
+            <input type="text" id="user-input" placeholder="Спроси меня..." onkeypress="handleEnter(event)">
+            <button id="send-btn" onclick="sendMessage()">→</button>
         </div>
     </div>
 
     <script>
-        // --- ЛОГИКА И ИИ ---
+        // --- НАСТРОЙКИ ---
+        const API_KEY = "AIzaSyDe40BKlP09Iv4emsK_LxKT-60t4iEarRY"; // Ваш ключ вставлен сюда
         
-        let happiness = 50; // 0 - 100
+        // Переменные состояния
+        let happiness = 50; 
         const robot = document.getElementById('robot');
         const statusText = document.getElementById('status-text');
         const inputField = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
 
-        // Простая база знаний (ИИ)
-        const responses = {
-            "привет": { text: "Привет! Рад тебя видеть!", mood: "happy" },
-            "как дела": { text: "Мои системы работают нормально. А ты как?", mood: "normal" },
-            "грустно": { text: "Ох... Хочешь я станцую для тебя?", mood: "sad" },
-            "плохо": { text: "Не грусти, всё наладится.", mood: "sad" },
-            "пока": { text: "До встречи! Буду ждать.", mood: "sad" },
-            "ты кто": { text: "Я твой виртуальный друг Роби.", mood: "happy" },
-            "смешно": { text: "Ха-ха! Люблю, когда ты смеешься.", mood: "excited" },
-            "default": { text: "Интересно... Расскажи еще.", mood: "normal" }
-        };
-
-        function updateRobotVisuals() {
-            // Сброс классов
-            robot.className = 'robot';
+        // Функция обновления внешнего вида
+        function updateRobotVisuals(moodOverride = null) {
+            robot.className = 'robot'; // Сброс классов
             
+            // Если ИИ прислал конкретную эмоцию, ставим её
+            if (moodOverride) {
+                if (moodOverride === 'happy') robot.classList.add('happy');
+                else if (moodOverride === 'sad') robot.classList.add('sad');
+                else if (moodOverride === 'excited') robot.classList.add('excited');
+                return;
+            }
+
+            // Иначе зависим от шкалы счастья
             if (happiness > 80) robot.classList.add('excited');
             else if (happiness > 60) robot.classList.add('happy');
             else if (happiness < 30) robot.classList.add('sad');
         }
 
+        // Функция "Погладить" (клик по роботу)
         function petRobot() {
-            happiness = Math.min(happiness + 10, 100);
-            statusText.innerText = "*Мурлычет* (Счастье: " + happiness + "%)";
-            updateRobotVisuals();
+            happiness = Math.min(happiness + 15, 100);
+            statusText.innerText = "*Мурлычет* Спасибо!";
+            updateRobotVisuals('happy');
             
-            // Анимация клика
+            // Возврат к обычному состоянию через 2 секунды
+            setTimeout(() => updateRobotVisuals(), 2000);
+            
+            // Анимация нажатия
             robot.style.transform = "scale(0.95)";
             setTimeout(() => { robot.style.transform = "scale(1)"; }, 100);
         }
 
-        function sendMessage() {
-            const text = inputField.value.toLowerCase().trim();
+        // Функция отправки сообщения в Gemini
+        async function sendMessage() {
+            const text = inputField.value.trim();
             if (!text) return;
 
+            // UI: Блокируем ввод и показываем анимацию
             inputField.value = '';
-            let response = responses["default"];
+            statusText.innerText = "Думаю...";
+            robot.classList.add('thinking');
+            sendBtn.disabled = true;
 
-            // Поиск ответа (простейший ИИ)
-            for (let key in responses) {
-                if (text.includes(key)) {
-                    response = responses[key];
-                    break;
+            try {
+                // Запрос к Google Gemini API
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `Ты маленький дружелюбный робот-помощник. Тебя зовут Роби. 
+                                Твоя задача - отвечать пользователю коротко (максимум 2 предложения), весело и с характером.
+                                
+                                ВАЖНО: Твой ответ должен быть СТРОГО в формате JSON. Не пиши ничего кроме JSON.
+                                Структура JSON:
+                                {
+                                    "reply": "текст твоего ответа здесь",
+                                    "mood": "happy" (варианты: "happy", "sad", "excited", "normal")
+                                }
+                                
+                                Сообщение пользователя: "${text}"`
+                            }]
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+                
+                // Обработка ответа
+                if (data.error) {
+                    throw new Error(data.error.message);
                 }
-            }
 
-            // Реакция робота
-            statusText.innerText = response.text;
-            
-            // Изменение настроения от слов
-            if (response.mood === "happy") happiness += 10;
-            if (response.mood === "sad") happiness -= 5;
-            if (response.mood === "excited") happiness += 20;
-            
-            // Ограничение значений 0-100
-            happiness = Math.max(0, Math.min(happiness, 100));
-            
-            updateRobotVisuals();
+                const rawText = data.candidates[0].content.parts[0].text;
+                // Очистка ответа от лишних символов (markdown), если они есть
+                const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+                const aiResponse = JSON.parse(cleanJson);
+
+                // Вывод ответа
+                statusText.innerText = aiResponse.reply;
+                
+                // Влияние на "счастье"
+                if (aiResponse.mood === "happy") happiness += 10;
+                if (aiResponse.mood === "sad") happiness -= 10;
+                if (aiResponse.mood === "excited") happiness += 20;
+                
+                // Ограничиваем счастье (0-100)
+                happiness = Math.max(0, Math.min(happiness, 100));
+                
+                updateRobotVisuals(aiResponse.mood);
+
+            } catch (error) {
+                console.error("Ошибка:", error);
+                statusText.innerText = "Упс, потерял связь с космосом!";
+                updateRobotVisuals('sad');
+            } finally {
+                // Разблокировка
+                robot.classList.remove('thinking');
+                sendBtn.disabled = false;
+            }
         }
 
+        // Отправка по Enter
         function handleEnter(e) {
             if (e.key === 'Enter') sendMessage();
         }
-
-        // Таймер "Скуки" (робот грустит, если про него забыли)
+        
+        // Таймер скуки (каждые 10 секунд счастье падает)
         setInterval(() => {
-            happiness -= 1; 
+            happiness -= 2;
             if(happiness < 0) happiness = 0;
-            updateRobotVisuals();
-        }, 5000); // Каждые 5 секунд
+            // Обновляем визуал, только если робот сейчас не анимирован
+            if(!robot.classList.contains('thinking')) {
+                updateRobotVisuals();
+            }
+        }, 10000);
 
     </script>
 </body>
